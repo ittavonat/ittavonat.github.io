@@ -1,0 +1,30 @@
+name: Update version
+run-name: Download the latest train information
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  logLatestRelease:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - id: update_version
+        run: |
+          python updater/update-script.py
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "${{ steps.update_version.outputs.message }}"
