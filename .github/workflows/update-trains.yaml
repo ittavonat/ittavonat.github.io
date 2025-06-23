@@ -2,7 +2,7 @@ name: Update train data
 run-name: Download the latest train information
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch:
 
 jobs:
