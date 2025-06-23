@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hol a vonat?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    #header {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 6px 16px;
+      border-radius: 8px;
+      z-index: 1000;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    #timestamp {
+      position: absolute;
+      top: 50px;
+      right: 50%;
+      transform: translateX(50%);
+      background: rgba(255, 255, 255, 0.7);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 16px;
+      z-index: 1000;
+    }
+    #disclaimer {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      width: 50%;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 1000;
+      color: darkred;
+    }
+    .passed { background-color: #c8e6c9; }
+    .delayed { color: red; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+    }
+    td, th {
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    .marker-container {
+      position: relative;
+      width: 26px;
+      height: 26px;
+    }
+
+    .triangle-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 26px;
+      height: 26px;
+      transform-origin: center center;
+      z-index: 0; /* Behind the circle */
+    }
+
+    .triangle {
+      position: absolute;
+      top: -8px; /* Adjust to make tip just peek out */
+      left: 3px;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 20px solid black; /* Tip downwards */
+    }
+
+    .circle {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: var(--color);
+      border: 2px solid black;
+      transform-origin: center center;
+      border-radius: 50%;
+      z-index: 1;
+    }
+
+
+    .popup-table-container {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 5px;
+    }
+
+    .legend {
+      background: rgba(255,255,255,0.7);
+      padding: 6px;
+      line-height: 18px;
+      color: #333;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border-radius: 5px;
+    }
+
+    .legend i {
+      padding: 2px;
+      width: 12px;
+      height: 12px;
+      float: left;
+      margin-right: 8px;
+      border-radius: 50%;
+      opacity: 0.8;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="header">Hol a vonat?</div>
+  <div id="map"></div>
+  <div id="timestamp">Utolsó frissítés: ...</div>
+  <div id="disclaimer">Figyelem! Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([47.3, 19.1], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18
+    }).addTo(map);
+    // L.tileLayer('http://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', {
+    //   maxZoom: 18
+    // }).addTo(map);
+
+    let markers = [];
+
+    function delayColor(min) {
+      if (min >= 60) return 'red';
+      if (min >= 15) return 'orange';
+      if (min >= 5) return 'yellow';
+      return 'lime';
+    }
+
+    function createMarkerIcon(color, heading) {
+      const container = document.createElement("div");
+      container.className = "marker-container";
+
+      const triangleWrapper = document.createElement("div");
+      triangleWrapper.className = "triangle-wrapper";
+      triangleWrapper.style.transform = `rotate(${heading}deg)`;
+
+      const triangle = document.createElement("div");
+      triangle.className = "triangle";
+
+      const circle = document.createElement("div");
+      circle.className = "circle";
+      circle.style.setProperty('--color', color);
+
+      triangleWrapper.appendChild(triangle);
+      container.appendChild(triangleWrapper);
+      container.appendChild(circle);
+
+      return L.divIcon({ html: container, className: '', iconSize: [30, 30] });
+    }
+
+
+    function formatTime(sec) {
+      if (sec == null) return '-';
+      const h = (String(Math.floor(sec / 3600)).padStart(2, '0'))%24;
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    function getCurrentDelay(stops, now) {
+      for (const stop of stops) {
+        const arrivalTime = stop.ra; // realtimeArrival in seconds since midnight
+        if (arrivalTime > now) {
+          return stop.a || stop.d || 0; // Prefer arrival delay, fallback to departure
+        }
+      }
+      // Fallback: use last known stop
+      const lastStop = stops[stops.length - 1];
+      return lastStop ? (lastStop.a || lastStop.d || 0) : 0;
+    }
+
+
+    function loadData() {
+      fetch("train_data.json")
+        .then(res => res.json())
+        .then(data => {
+          markers.forEach(m => m.remove());
+          markers = [];
+
+          const now = new Date();
+          const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+
+          const updated = new Date(data.lastUpdated * 1000);
+          document.getElementById("timestamp").textContent =
+            `Utolsó frissítés: ${updated.toLocaleTimeString('hu-HU')}`;
+
+          var secondsSinceUpdate = (now.getTime() - updated.getTime()) / 1000;
+          if (secondsSinceUpdate > 60*10) {
+            alert("Figyelem! Az adatok utolsó frissítése " + updated.toLocaleTimeString('hu-HU') + "-kor volt!\n\nEz az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.")
+          }
+
+          data.vehicles.forEach(v => {
+            const delay = Math.round(getCurrentDelay(v.stops, nowSec) / 60);
+            const delayText = delay >= 1 ? `${delay} perc késés` : 'nincs késés';
+            const color = delayColor(delay);
+            const heading = v.hd || 0;
+            const speed = Math.round((v.sp || 0) * 3.6);
+
+            const marker = L.marker([v.lat, v.lon], {
+              icon: createMarkerIcon(color, heading)
+            }).addTo(map);
+
+            marker.bindTooltip(`${v.name} (${speed} km/h) - ${delayText}`, {
+              direction: "top"
+            });
+
+            let table = '<div class="popup-table-container"><table><tr><th>Állomás</th><th>Érk.</th><th>Ind.</th><th>Vágány</th></tr>';
+            v.stops.forEach(s => {
+              const arr = formatTime(s.sa);
+              const rta = formatTime(s.ra);
+              const dep = formatTime(s.sd);
+              const rtd = formatTime(s.rd);
+              let track = s.v
+              if(track == null){
+                track = "-";
+              }
+              const arrDelay = (s.a || 0) / 60;
+              const depDelay = (s.d || 0) / 60;
+              const delayedClass = (arrDelay > 0 || depDelay > 0) ? 'delayed' : '';
+              const isPassed = (s.rd || 0) < nowSec;
+
+              table += `<tr class="${isPassed ? 'passed' : ''}">
+                <td>${s.name}</td>
+                <td>${arr}<br><span class="${delayedClass}">${rta}</span></td>
+                <td>${dep}<br><span class="${delayedClass}">${rtd}</span></td>
+                <td>${track}</td>
+              </tr>`;
+            });
+            table += '</table></div>';
+
+            marker.bindPopup(`
+              <b>${v.name}</b><br>
+              ${v.headsgn}<br>
+              Sebesség: ${speed} km/h<br>
+              Késés: ${delayText}<br>
+              ${table}
+            `);
+            markers.push(marker);
+          });
+        });
+    }
+
+    loadData();
+    setInterval(loadData, 60000);
+
+    const legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML += "<b>Színek jelentése</b><br>";
+      div.innerHTML += '<i style="background: lime"></i>0-4 perc késés<br>';
+      div.innerHTML += '<i style="background: yellow"></i>5-14 perc késés<br>';
+      div.innerHTML += '<i style="background: orange"></i>15-59 perc késés<br>';
+      div.innerHTML += '<i style="background: red"></i>60+ perc késés<br>';
+      return div;
+    };
+
+    legend.addTo(map);
+
+    alert("Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.");
+  </script>
+</body>
+</html>
