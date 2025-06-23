@@ -1,4 +1,4 @@
-name: Update version
+name: Update train data
 run-name: Download the latest train information
 on:
   schedule:
@@ -26,6 +26,11 @@ jobs:
           pip install -r updater/requirements.txt
           python updater/update-script.py
 
+      - id: get_version
+        run: |
+          VERSION=$(jq .lastUpdated train_data.json)
+          echo "message=Update train data to: '$VERSION'" >> "$GITHUB_OUTPUT"
+
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "${{ steps.update_version.outputs.message }}"
+          commit_message: "${{ steps.get_version.outputs.message }}"

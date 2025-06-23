@@ -7,7 +7,7 @@ import os
 
 GRAPHQL_ENDPOINT = "https://emma.mav.hu/otp2-backend/otp/routers/default/index/graphql"
 OUTPUT_FILE = "/tmp/train_data.json"
-STATIC_FILE = "../train_data.json"
+STATIC_FILE = "train_data.json"
 
 HEADERS = {
     "Content-Type": "application/json",
