@@ -23,6 +23,7 @@ jobs:
 
       - id: update_version
         run: |
+          pip install -r updater/requirements.txt
           python updater/update-script.py
 
       - uses: stefanzweifel/git-auto-commit-action@v4
