@@ -155,7 +155,7 @@ def main():
             })
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            json.dump(all_data, f, separators=(",", ":"), ensure_ascii=False)
+            json.dump(all_data, f, separators=(",\n", ":\n"), ensure_ascii=False)
         try:
             if os.path.exists(STATIC_FILE): shutil.copy(STATIC_FILE, STATIC_FILE + ".bak")
             shutil.copy(OUTPUT_FILE, STATIC_FILE)
