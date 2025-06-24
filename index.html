@@ -8,16 +8,16 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 
-    <meta property="og:site_name" content="ittavonat.eu" />
-    <meta property="og:title" content="Hol a vonat? Itt a vonat!">
-    <meta name="twitter:title" content="Hol a vonat? Itt a vonat!">
-    <meta property="description" content="Magyar vonattérkép">
-    <meta property="og:description" content="Magyar vonattérkép">
-    <meta name="twitter:description" content="Magyar vonattétkép">
-    <meta property="og:image" content="https://ittavonat.eu/social.png?a">
-    <meta name="twitter:image" content="https://ittavonat.eu/social.png?a">
-    <meta property="og:site_name" content="ittavonat.eu">
-    <meta name="twitter:site" content="ittavonat.eu">
+  <meta property="og:site_name" content="ittavonat.eu" />
+  <meta property="og:title" content="Hol a vonat? Itt a vonat!">
+  <meta name="twitter:title" content="Hol a vonat? Itt a vonat!">
+  <meta property="description" content="Magyar vonattérkép">
+  <meta property="og:description" content="Magyar vonattérkép">
+  <meta name="twitter:description" content="Magyar vonattétkép">
+  <meta property="og:image" content="https://ittavonat.eu/social.png?a">
+  <meta name="twitter:image" content="https://ittavonat.eu/social.png?a">
+  <meta property="og:site_name" content="ittavonat.eu">
+  <meta name="twitter:site" content="ittavonat.eu">
 
   <style>
     html,
@@ -161,6 +161,21 @@
       border-radius: 50%;
       opacity: 0.8;
     }
+
+    #lazarjanosszomoru {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+
+    #lazarjanosszomoru a {
+      display: block;
+      background-image: url('img/lazar_3.png');
+      background-size: cover;
+      width: 50px;
+      height: 50px;
+    }
   </style>
 </head>
 
@@ -168,12 +183,16 @@
   <div id="header">Hol a vonat?</div>
   <div id="map"></div>
   <div id="timestamp">Utolsó frissítés: ...</div>
-  <div id="disclaimer"><b>Figyelem!</b> Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő
-    semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak
-    tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.
+  <div id="disclaimer">
+    <b>Figyelem!</b> Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal.
+    A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért.
+    A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét
+    vagy időszerűségét.
     A rendszer kb. 5 percenként frissül.
     <a href="https://github.com/ittavonat/ittavonat.github.io/">A honlap forráskódja itt található</a>.
-    A honlap az eredeti <a href="https://gitlab.com/holavonat1">holavonat.hu</a> alapján készült.</div>
+    A honlap az eredeti <a href="https://gitlab.com/holavonat1">holavonat.hu</a> alapján készült.
+  </div>
+  <div id="lazarjanosszomoru"><a href="?lazarjanosszomoru"></a></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -187,14 +206,21 @@
 
     let markers = [];
 
-    function delayColor(min) {
-      if (min >= 60) return 'red';
-      if (min >= 15) return 'orange';
-      if (min >= 5) return 'yellow';
+    function delayColor(level) {
+      if (level >= 3) return 'red';
+      if (level == 2) return 'orange';
+      if (level == 1) return 'yellow';
       return 'lime';
     }
 
-    function createMarkerIcon(color, heading) {
+    function delayLevel(min) {
+      if (min >= 60) return 3;
+      if (min >= 15) return 2;
+      if (min >= 5) return 1;
+      return 0;
+    }
+
+    function createMarkerIcon(level, heading) {
       const container = document.createElement("div");
       container.className = "marker-container";
 
@@ -207,13 +233,29 @@
 
       const circle = document.createElement("div");
       circle.className = "circle";
-      circle.style.setProperty('--color', color);
+      circle.style.setProperty('--color', delayColor(level));
+
+      let iconSize = [30, 30];
+
+      if (window.location.search.includes('lazarjanosszomoru')) {
+        circle.style.setProperty('background-image', `url(img/lazar_${level}.png)`);
+        circle.style.setProperty('background-size', 'cover');
+        circle.style.setProperty('background-blend-mode', 'multiply');
+        circle.style.setProperty('width', '45px');
+        circle.style.setProperty('height', '45px');
+        triangleWrapper.style.setProperty('width', '53px');
+        triangleWrapper.style.setProperty('height', '53px');
+        triangle.style.setProperty('top', '-15px');
+        triangle.style.setProperty('left', '14px');
+
+        iconSize = [60, 60];
+      }
 
       triangleWrapper.appendChild(triangle);
       container.appendChild(triangleWrapper);
       container.appendChild(circle);
 
-      return L.divIcon({ html: container, className: '', iconSize: [30, 30] });
+      return L.divIcon({ html: container, className: '', iconSize: iconSize });
     }
 
 
@@ -266,12 +308,12 @@
           data.vehicles.forEach(v => {
             const delay = Math.round(getCurrentDelay(v.stops, nowSec) / 60);
             const delayText = delay >= 1 ? `${delay} perc késés` : 'nincs késés';
-            const color = delayColor(delay);
+            const level = delayLevel(delay);
             const heading = v.hd || 0;
             const speed = Math.round((v.sp || 0) * 3.6);
 
             const marker = L.marker([v.lat, v.lon], {
-              icon: createMarkerIcon(color, heading)
+              icon: createMarkerIcon(level, heading)
             }).addTo(map);
 
             marker.bindTooltip(`${v.name} (${speed} km/h) - ${delayText}`, {
