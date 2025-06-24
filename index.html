@@ -168,7 +168,7 @@
   <div id="header">Hol a vonat?</div>
   <div id="map"></div>
   <div id="timestamp">Utolsó frissítés: ...</div>
-  <div id="disclaimer">Figyelem! Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő
+  <div id="disclaimer"><b>Figyelem!</b> Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő
     semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak
     tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.
     A rendszer kb. 5 percenként frissül.
@@ -260,7 +260,7 @@
           }
 
           if (secondsSinceUpdate > 60 * 10) {
-            alert("Figyelem! Az adatok utolsó frissítése " + updated.toLocaleTimeString('hu-HU') + "-kor volt!\n\nEz az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.")
+            alert("Figyelem! Az adatok utolsó frissítése " + updated.toLocaleTimeString('hu-HU') + "-kor volt!")
           }
 
           data.vehicles.forEach(v => {
@@ -330,8 +330,6 @@
     };
 
     legend.addTo(map);
-
-    alert("Ez az oldal nem hivatalos és nem áll kapcsolatban a MÁV Csoporttal. A fejlesztő semmilyen felelősséget nem vállal az oldal használatából eredő következményekért. A megjelenített információk csak tájékoztató jellegűek, a fejlesztő nem garantálja azok pontosságát, teljességét vagy időszerűségét.");
   </script>
 </body>
 
